@@ -5,23 +5,31 @@ package lootutil
 import (
     "net/http"
     "io/ioutil"
+    "strconv"
     "fmt"
     "errors"
 )
 
-// Determines support for partial requests
-func canBeDivided(url *string) bool {
+/***************YOU SHOULD RECONSIDER THIS CODE******************/
+// inspect determines support for partial requests and size of file
+func inspect(url *string) (size int, err error) {
     // make HEAD request
     resp, err := http.Head(*url)
     // Handle errors if any
     if err != nil {
-        fmt.Printf("Error... %v\n", err)
-        return false
+        return
     }
     // Check support for partial requests
     _, ok := resp.Header["Accept-Ranges"]
+    if !ok {
+        err = errors.New(*url + " doesn't support partial requests...")
+        return
+    }
+    fileSize, _ := resp.Header["Content-Length"]
+    // Convert file size from string to int
+    size, err = strconv.Atoi(fileSize[0])
 
-    return ok
+    return
 }
 // Create http request
 func createRequest(method, block string, url *string) (
@@ -42,6 +50,7 @@ const (
     CHUNK = 256 * KB
 )
 
+// Try returning response body
 // lootChunk downloads piece of file
 func lootChunk(url *string, startAt int) error {
     block := fmt.Sprintf("bytes=%v-%v", startAt, startAt + CHUNK)
@@ -63,51 +72,23 @@ func lootChunk(url *string, startAt int) error {
     defer resp.Body.Close()
 
     body, err := ioutil.ReadAll(resp.Body)
+    fmt.Println(body)
 
     return nil
 }
 
 func Loot(url *string) error {
-    ok := canBeDivided(url)
+    size, err := inspect(url)
+    fmt.Println("Size = ", size)
 
-    if !ok {
-        return errors.New("Cannot download the file!!!")
+    if err != nil {
+        return err
     }
 
-    err := lootChunk(url, 0, 100000)
+    err = lootChunk(url, 0)
     if err != nil {
         fmt.Printf("Error... %v\n", err)
     }
 
-    /*resp, err := http.Get(*url)
-    if err != nil {
-        fmt.Printf("Error occured: %v\n", err)
-        return err
-    }*/ /*
-    req, err := http.NewRequest("GET", *url, nil)
-    const chunk = 100 * 1024
-    req.Header.Add("Range", "bytes=0-100")// + string(chunk))
-
-    client := &http.Client{}
-    resp, err := client.Do(req)
-
-    if err != nil {
-        fmt.Printf("Error occured: %v\n", err)
-        return err
-    }
-    defer resp.Body.Close()
-    body, err := ioutil.ReadAll(resp.Body)
-
-    if err != nil {
-        fmt.Printf("Error occured: %v\n", err)
-        return err
-    }
-*/
-    //fmt.Println("Message body length: ", len(body))
-
-    //fmt.Println("Content-Type: ", resp.Header["Content-Type"])
-    //fmt.Println("Range: ", req.Header["Range"])
-    //fmt.Println("Accept-Ranges: ", resp.Header["Accept-Ranges"])
-    //fmt.Println("Content-Length: ", resp.Header["Content-Length"])
     return nil
 }
