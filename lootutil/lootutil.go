@@ -4,31 +4,79 @@ package lootutil
 
 import (
     "net/http"
-    //"io/ioutil"
+    "io/ioutil"
     "fmt"
+    "errors"
 )
 
-func canBeDivided(url *string) (ok bool, err error) {
+// Determines support for partial requests
+func canBeDivided(url *string) bool {
+    // make HEAD request
     resp, err := http.Head(*url)
-    _, ok = resp.Header["Accept-Ranges"]
+    // Handle errors if any
+    if err != nil {
+        fmt.Printf("Error... %v\n", err)
+        return false
+    }
+    // Check support for partial requests
+    _, ok := resp.Header["Accept-Ranges"]
+
+    return ok
+}
+// Create http request
+func createRequest(method, block string, url *string) (
+    req *http.Request, err error) {
+    req, err = http.NewRequest("GET", *url, nil)
+    // if error happened, return immediately
+    if err != nil {
+        return
+    }
+    // Add "Range" header to http request
+    req.Header.Add("Range", block)
 
     return
 }
 
-func lootChunk(url *string, start, end int) error {
-    req, err := http.NewRequest("GET"m *url, nil)
+const (
+    KB = 1024
+    CHUNK = 256 * KB
+)
+
+// lootChunk downloads piece of file
+func lootChunk(url *string, startAt int) error {
+    block := fmt.Sprintf("bytes=%v-%v", startAt, startAt + CHUNK)
+
+    req, err := createRequest("GET", block, url)
+    // Handle errors if any
     if err != nil {
         return err
     }
 
-    range := fmt.Sprintf("bytes=%v-%v", start, end)
-    req.Header.Add("Range", )
+    // Create http client
+    client := &http.Client{}
+    // Make request
+    resp, err := client.Do(req)
+
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    body, err := ioutil.ReadAll(resp.Body)
+
+    return nil
 }
 
 func Loot(url *string) error {
-    ok, err := canBeDivided(url)
+    ok := canBeDivided(url)
+
+    if !ok {
+        return errors.New("Cannot download the file!!!")
+    }
+
+    err := lootChunk(url, 0, 100000)
     if err != nil {
-        return err
+        fmt.Printf("Error... %v\n", err)
     }
 
     /*resp, err := http.Get(*url)
