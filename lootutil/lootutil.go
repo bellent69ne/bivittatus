@@ -7,6 +7,8 @@ import (
     "io/ioutil"
     "strconv"
     "fmt"
+    "os"
+    "strings"
     "errors"
 )
 
@@ -47,18 +49,23 @@ func createRequest(method, block string, url *string) (
 
 const (
     KB = 1024
-    CHUNK = 256 * KB
+    CHUNK = 128 * KB
 )
+
+type DataChunk struct {
+    data []uint8
+    err error
+}
 
 // Try returning response body
 // lootChunk downloads piece of file
-func lootChunk(url *string, startAt int) error {
+func lootChunk(url *string, startAt int64, stream chan DataChunk) {
     block := fmt.Sprintf("bytes=%v-%v", startAt, startAt + CHUNK)
 
     req, err := createRequest("GET", block, url)
     // Handle errors if any
     if err != nil {
-        return err
+        stream <- DataChunk{nil, err}
     }
 
     // Create http client
@@ -67,27 +74,87 @@ func lootChunk(url *string, startAt int) error {
     resp, err := client.Do(req)
 
     if err != nil {
-        return err
+        stream <- DataChunk{nil, err}
     }
     defer resp.Body.Close()
 
     body, err := ioutil.ReadAll(resp.Body)
-    fmt.Println(body)
-
-    return nil
+    stream <- DataChunk{body, err}
+    fmt.Println("I think I got something")
 }
 
-func Loot(url *string) error {
-    size, err := inspect(url)
-    fmt.Println("Size = ", size)
+func filename(url *string) string {
+    result := strings.Split(*url, "/")
+
+    return result[len(result) - 1]
+}
+
+func writeToFile(filename string, stream chan DataChunk) (err error) {
+    received := <-stream
+    if received.err != nil {
+        return received.err
+    }
+
+    var file *os.File
+    if _, err = os.Stat(filename); os.IsNotExist(err) {
+        file, err = os.Create(filename)
+        fmt.Println("Creating new file")
+    } else {
+        file, err = os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
+        fmt.Println("Writing to the same file")
+    }
+    defer file.Close()
 
     if err != nil {
+        return
+    }
+
+    file.Write(received.data)
+    file.Sync()
+    return
+}
+
+// Loot downloads pieces of file from url
+// and assembles them into one file simultaneously
+func Loot(url *string) error {
+    size, err := inspect(url)
+
+    if err != nil {
+
         return err
     }
 
-    err = lootChunk(url, 0)
+    stream := make(chan DataChunk)
+
+    var downloaded int64
+
+    fi, err := os.Stat(filename(url))
+    if err == nil {
+        downloaded = fi.Size()
+    } else if os.IsNotExist(err) {
+        downloaded = 0
+    } else if err != nil && !os.IsNotExist(err) {
+        return err
+    }
+
+    for downloaded != int64(size) {
+        go lootChunk(url, downloaded, stream)
+        err = writeToFile(filename(url), stream)
+
+        if err != nil {
+            return err
+        }
+
+        downloaded += CHUNK
+        // ALL THIS CODE STILL REQUIERS MODIFICATION
+        if downloaded > int64(size) {
+            downloaded = in64(size)
+        }
+    }
+
+    //err = lootChunk(url, 0)
     if err != nil {
-        fmt.Printf("Error... %v\n", err)
+        return err
     }
 
     return nil

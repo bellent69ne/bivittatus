@@ -4,14 +4,14 @@ import (
     "fmt"
     "os"
     "github.com/m0bsterrabb69t/bivitattus/lootutil"
-    "strings"
+    //"strings"
 )
 
-func fileName(url *string) string {
-    result := strings.Split(*url, "/")
-
-    return result[len(result) - 1]
-}
+//func fileName(url *string) string {
+//    result := strings.Split(*url, "/")
+//
+//    return result[len(result) - 1]
+//}
 
 func Run() {
     cmdArgs := os.Args[1:]
@@ -21,7 +21,7 @@ func Run() {
     if err != nil {
         fmt.Printf("Error... %v\n", err)
     }
-    fileName(url)
+    //fileName(url)
 }
 
 func main() {
