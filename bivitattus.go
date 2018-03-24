@@ -7,21 +7,31 @@ import (
     //"strings"
 )
 
-//func fileName(url *string) string {
-//    result := strings.Split(*url, "/")
-//
-//    return result[len(result) - 1]
-//}
+func errorExists(Errors []string, err error) bool {
+    for _, v := range Errors {
+        if v == err.Error() {
+            return true
+        }
+    }
+    Errors = append(Errors, err.Error())
+    return false
+}
 
 func Run() {
     cmdArgs := os.Args[1:]
 
     url := &cmdArgs[len(cmdArgs)-1]
-    err := lootutil.Loot(url)
-    if err != nil {
-        fmt.Printf("Error... %v\n", err)
+    Errors := make([]string, 0)
+    for {
+        err := lootutil.Loot(url)
+        if err != nil {
+            if !errorExists(Errors, err) {
+                fmt.Printf("%v\n\n", err)
+            }
+        } else {
+            break
+        }
     }
-    //fileName(url)
 }
 
 func main() {
