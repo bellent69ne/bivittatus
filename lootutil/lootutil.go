@@ -133,20 +133,13 @@ func writeToFile(filename string, stream chan DataChunk) (
     return received.Duration, nil
 }
 
-//func printSize(webFileSize int, fileSize int64) {
-//    fmt.Printf("Size: %d (%dMB), %d (%dMB) remaining\n",
-//        webFileSize, webFileSize / MB,
-//        int64(webFileSize) - fileSize,
-//        ((int64(webFileSize) - fileSize) / MB))
-//}
-
 func ttyWidth() (width int, err error) {
     cmd := exec.Command("stty", "size")
     cmd.Stdin = os.Stdin
     out, err := cmd.Output()
 
     if err != nil {
-        return 0, err
+        return 0, errors.Wrap(err, "Failed calculating tty width")
     }
 
     out = out[:len(out)-1]
@@ -155,6 +148,30 @@ func ttyWidth() (width int, err error) {
 
     width, err = strconv.Atoi(splitted[1])
     return
+}
+
+func state(percent int) string {
+    width, err := ttyWidth()
+    if err != nil {
+        fmt.Println(err)
+        return ""
+    }
+    totalLength := width * 35 / 100
+    stateLength := totalLength * percent / 100
+
+    state := make([]rune, totalLength + 2)
+    state[0] = '|'
+    for i := 1; i <= totalLength; i++ {
+        if i == stateLength {
+            state[i] = '>'
+        } else if i < stateLength {
+            state[i] = '='
+        } else {
+            state[i] = ' '
+        }
+    }
+    state[len(state) - 1] = '|'
+    return string(state)
 }
 
 func printStatus(nextChunk int64, size int, elapsed time.Duration) {
@@ -178,8 +195,9 @@ func printStatus(nextChunk int64, size int, elapsed time.Duration) {
     speed := CHUNK / (elapsed / time.Millisecond)
     speed *= 1000
     speed /= 1024
-    percent := fmt.Sprintf("%.f%%", float64(nextChunk) / float64(size) * 100)
-    fmt.Printf("\r    %s    %s    %dkB/s    %s", strSize, strGot, int(speed), percent)
+    percent := int(float64(nextChunk) / float64(size) * 100)
+    fmt.Printf("\r    %s    %s    %dkB/s    %s %d%% ",
+         strSize, strGot, int(speed), state(percent), percent)
 }
 
 // Loot downloads pieces of file from url
