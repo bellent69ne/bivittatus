@@ -196,8 +196,10 @@ func printStatus(nextChunk int64, size int, elapsed time.Duration) {
     speed *= 1000
     speed /= 1024
     percent := int(float64(nextChunk) / float64(size) * 100)
-    fmt.Printf("\r    %s    %s    %dkB/s    %s %d%% ",
-         strSize, strGot, int(speed), state(percent), percent)
+    //fmt.Printf("\r    %s    %s    %dkB/s    %s %d%% ",
+     //    strSize, strGot, int(speed), state(percent), percent)
+     fmt.Printf("\r    %s %d%%    %s    %dkB/s    %s   ",
+        state(percent), percent, strGot, int(speed), strSize)
 }
 
 // Loot downloads pieces of file from url
