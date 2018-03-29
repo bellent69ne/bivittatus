@@ -7,31 +7,32 @@ import (
     //"strings"
 )
 
-func errorExists(Errors []string, err error) bool {
-    for _, v := range Errors {
-        if v == err.Error() {
-            return true
-        }
+func isPrintable(err, previousErr error) bool {
+    if err.Error() == previousErr.Error() {
+        return false
     }
-    Errors = append(Errors, err.Error())
-    return false
+    //fmt.Println(err == previousErr)
+    return true
 }
 
 func Run() {
     cmdArgs := os.Args[1:]
 
     url := &cmdArgs[len(cmdArgs)-1]
-    Errors := make([]string, 0)
+    previousErr := fmt.Errorf("")
     for {
         err := lootutil.Loot(url)
         if err != nil {
-            if !errorExists(Errors, err) {
-                fmt.Printf("%v\n\n", err)
+            if isPrintable(err, previousErr) {
+                fmt.Printf("\n\n%v\n\n", err)
+                previousErr = err
             }
         } else {
             break
         }
     }
+
+    fmt.Printf("Done.\a\n")
 }
 
 func main() {
