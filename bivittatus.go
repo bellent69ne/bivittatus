@@ -3,7 +3,7 @@ package main
 import (
     "fmt"
     "os"
-    "github.com/m0bsterrabb69t/bivitattus/lootutil"
+    "github.com/m0bsterrabb69t/bivittatus/lootutil"
     //"strings"
 )
 
